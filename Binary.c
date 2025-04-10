@@ -171,7 +171,7 @@ int convertToBinary(const char *csvPath, const char *binaryPath) {
     header.version = VERSION;
     header.timestamp = (uint32_t)time(NULL);
     header.recordCount = 0;
-    strncpy(header.city, CITI_NAME, 51);
+    strncpy(header.city, CITI_NAME, 31);
     header.latitude = LAT;
     header.longitude = LONG;
 
@@ -315,29 +315,7 @@ void readHeader(const char *binaryPath) {
 }
 
 void readRecordByIndex(const char *binaryPath) {
-    //Read index
-    bool valid = false;
-    unsigned recordIndex;
-    while(!valid) {
-        char input[20];
-        printf("\nEnter the index of the record: ");
-        if(!fgets(input, sizeof(input), stdin)) {
-            printf("Invalid input. Please try again!\n");
-            continue;
-        }
-
-        input[strcspn(input, "\n")] = 0;
-
-        char *ptr;
-        recordIndex = strtol(input, &ptr, 10);
-        // printf("\nat: %u\n", recordIndex);
-        if(*ptr != '\0') {
-            printf("Invalid format. Please try again!\n");
-            continue;
-        }
-
-        valid = true;
-    }
+    unsigned recordIndex = indexReader();
     
     
     FILE *binaryFile = fopen(binaryPath, "rb");
@@ -355,9 +333,27 @@ void readRecordByIndex(const char *binaryPath) {
         return;
     }
 
-    printf("%u, %.2f, %.2f, %.2f, %u, %u, %.2f, %u, %u, %u, %u\n",
+    printf("%u, %.2f, %.2f, %.2f, %u, %u, %.2f, %u, %u, %u",
     record.timestamp, record.temp, record.visibility, ((float)record.feels_like/10)+record.temp,
-    record.pressure, record.humidity, record.wind_speed, record.wind_deg, record.clouds, record.weather_id, record.weather_type);
+    record.pressure, record.humidity, record.wind_speed, record.wind_deg, record.clouds, record.weather_id);
+
+    switch(record.weather_type) {
+        case 0:
+            printf(", Clear\n");
+            break;
+        case 1:
+            printf(", Clouds\n");
+            break;
+        case 2:
+            printf(", Mist\n");
+            break;
+        case 3:
+            printf(", Snow\n");
+            break;
+        case 4:
+            printf(", Rain\n");
+            break;
+    }
 }
 
 bool verifyHeader(const char *binaryPath) {
@@ -461,7 +457,36 @@ void readRecordInInterval(const char *binaryPath) {
     }
 }
 
+unsigned indexReader() {
+    bool valid = false;
+
+    unsigned index;
+    while(!valid) {
+        char input[20];
+        printf("\nEnter the index of the record: ");
+        if(!fgets(input, sizeof(input), stdin)) {
+            printf("Invalid input. Please try again!\n");
+            continue;
+        }
+
+        input[strcspn(input, "\n")] = 0;
+
+        char *ptr;
+        index = strtol(input, &ptr, 10);
+        if(*ptr != '\0') {
+            printf("Invalid format. Please try again!\n");
+            continue;
+        }
+
+        valid = true;
+    }
+
+    return index;
+}
+
 void addRecord(const char *binaryPath, WeatherRecord_t *newRecord) {
+    // unsigned index = indexReader();
+    
     FILE *binaryFile = fopen(binaryPath, "r+b");
     if(!binaryFile) {
         perror("Error opening the binary file!\n");
@@ -474,6 +499,9 @@ void addRecord(const char *binaryPath, WeatherRecord_t *newRecord) {
         fclose(binaryFile);
         return;
     }
+    
+
+    // uint32_t originalRecords = header.recordCount;
 
     fseek(binaryFile, 0, SEEK_END);
     if(fwrite(newRecord, sizeof(WeatherRecord_t), 1, binaryFile) != 1) {
@@ -489,33 +517,29 @@ void addRecord(const char *binaryPath, WeatherRecord_t *newRecord) {
         return;
     }
 
+    // header.recordCount++;
+
+    // fseek(binaryFile, 0, SEEK_SET);
+    // if(fwrite(&header, sizeof(FileHeader_t), 1, binaryFile) != 1) {
+    //     perror("Error modifying the header!\n");
+    //     return;
+    // }
+
+    // for(uint32_t i=0;i<originalCount;i++) {
+    //     if(i != index) {
+    //         fwrite(&records[i], sizeof(WeatherRecord_t), 1, outputBinary);
+    //     }
+    //     else {
+    //         printf("Deleted record with timestamp: %u\n", records[i].timestamp);
+    //     }
+    // }
+
     printf("Record added successfully!\n");
     fclose(binaryFile);
 }
 
 void updateRecord(const char *binaryPath, WeatherRecord_t* newRecord) {
-    //Read index
-    bool valid = false;
-    unsigned index;
-    while(!valid) {
-        char input[20];
-        printf("\nEnter the index of the record: ");
-        if(!fgets(input, sizeof(input), stdin)) {
-            printf("Invalid input. Please try again!\n");
-            continue;
-        }
-
-        input[strcspn(input, "\n")] = 0;
-
-        char *ptr;
-        index = strtol(input, &ptr, 10);
-        if(*ptr != '\0') {
-            printf("Invalid format. Please try again!\n");
-            continue;
-        }
-
-        valid = true;
-    }
+    unsigned index = indexReader();
 
     FILE *binaryFile = fopen(binaryPath, "r+b");
     if(!binaryFile) {
@@ -530,7 +554,11 @@ void updateRecord(const char *binaryPath, WeatherRecord_t* newRecord) {
         return;
     }
 
-    fseek(binaryFile, sizeof(FileHeader_t) + (index-1)*sizeof(WeatherRecord_t), SEEK_SET);
+    fseek(binaryFile, sizeof(FileHeader_t) + (index)*sizeof(WeatherRecord_t), SEEK_SET);
+    uint32_t timestampModified;
+    fread(&timestampModified, sizeof(uint32_t), 1, binaryFile);
+    printf("Modifying at timestamp: %u\n", timestampModified);
+    fseek(binaryFile, sizeof(FileHeader_t) + (index)*sizeof(WeatherRecord_t), SEEK_SET);
     if(fwrite(newRecord, sizeof(WeatherRecord_t), 1, binaryFile) != 1) {
         perror("Error updating record at index");
         fclose(binaryFile);
@@ -543,28 +571,7 @@ void updateRecord(const char *binaryPath, WeatherRecord_t* newRecord) {
 }
 
 void hardDeleteRecord(const char *binaryPath) {
-    //Read index
-    bool valid = false;
-    unsigned index;
-    while(!valid) {
-        char input[20];
-        printf("\nEnter the index of the record: ");
-        if(!fgets(input, sizeof(input), stdin)) {
-            printf("Invalid input. Please try again!\n");
-            continue;
-        }
-
-        input[strcspn(input, "\n")] = 0;
-
-        char *ptr;
-        index = strtol(input, &ptr, 10);
-        if(*ptr != '\0') {
-            printf("Invalid format. Please try again!\n");
-            continue;
-        }
-
-        valid = true;
-    }
+    unsigned index = indexReader();
     
     FILE *binaryFile = fopen(binaryPath, "rb");
     if(!binaryFile) {
@@ -589,13 +596,16 @@ void hardDeleteRecord(const char *binaryPath) {
         perror("Error opening the binary file!\n");
         return;
     }
+    uint32_t originalCount = header.recordCount; 
     header.recordCount--;
     fwrite(&header, sizeof(FileHeader_t), 1, outputBinary);
 
-    header.recordCount++;
-    for(uint32_t i=0;i<header.recordCount;i++) {
+    for(uint32_t i=0;i<originalCount;i++) {
         if(i != index) {
             fwrite(&records[i], sizeof(WeatherRecord_t), 1, outputBinary);
+        }
+        else {
+            printf("Deleted record with timestamp: %u\n", records[i].timestamp);
         }
     }
 

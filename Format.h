@@ -16,7 +16,7 @@ typedef struct {
     uint16_t version;
     uint32_t timestamp;
     uint32_t recordCount;
-    char city[51];
+    char city[31];
     double latitude;      
     double longitude;     
 } __attribute__((packed)) FileHeader_t;
@@ -41,9 +41,8 @@ typedef struct {
 
 typedef struct {
     uint32_t timestamp;
-    float temp, visibility/*, feels_like*/;
+    float temp, visibility;
     int16_t feels_like;
-    // int16_t temp;
     uint16_t pressure;
     uint8_t humidity;
     float wind_speed;

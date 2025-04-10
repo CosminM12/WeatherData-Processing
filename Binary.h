@@ -15,6 +15,8 @@ bool verifyHeader(const char *binaryPath);
 
 void readRecordInInterval(const char *binaryPath);
 
+unsigned indexReader();
+
 void addRecord(const char *binaryPath, WeatherRecord_t *newRecord);
 
 void updateRecord(const char *binaryPath, WeatherRecord_t* newRecord);

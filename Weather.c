@@ -26,7 +26,9 @@ int read_csv(FILE *file, Weather_t **data, int *size) {
     }
 
     while (fgets(line, sizeof(line), file) != NULL) {
-        printf("Reading line %d\\414088\n", *size+1);
+        if((*size+1) % 1000 == 0) {
+            printf("Reading line %d\\414088\n", *size+1);
+        }
         if (*size >= capacity) {
             capacity *= 2;
             *data = realloc(*data, capacity * sizeof(Weather_t));
@@ -498,7 +500,34 @@ void show_visuals(Weather_t *data, int size) {
                 }
                 break;
             case 3:
+                int year3, month3, day3;
+                readDates(&year3, &month3, &day3);
+                int intervalStart = findFirstDateOcc(data, size, year3, month3, day3);
                 
+                for(int i=0;i<16;i++) {
+                    float avg = 0, count = 0;
+                    for(int j=0;j<24;j++) {
+                        avg = (count * avg + data[intervalStart+i*24+j].temp)/(count+1);
+                        count++;
+                    }
+                    // printf("Temp: %f\n", avg);
+                    if(avg < -10) {
+                        printf("_");
+                    }
+                    else if(avg < 0) {
+                        printf(".");
+                    }
+                    else if(avg < 10) {
+                        printf("+");
+                    }
+                    else if(avg < 20){
+                        printf("*");
+                    }
+                    else {
+                        printf("^");
+                    }
+                }
+                putchar('\n');
                 break;
             case 4:
                 break;
